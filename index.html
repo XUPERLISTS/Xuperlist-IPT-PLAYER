@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8"/>
-  <title>Xuperlist IPT Player</title>
+  <title>XUPERLIST IPT PLAYER</title>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <style>
     :root{--bg:#111;--accent:#ff3d00;--text:#eee;--panel:#222}
@@ -11,7 +11,7 @@
     header img{height:200px}
     #controls{display:flex;gap:.5rem;flex-wrap:wrap;padding:.5rem 1rem}
     #controls input[type="text"]{flex:1 1 200px;padding:.5rem;border:none;border-radius:4px}
-    #controls button,#controls label{background:var(--accent);color:#fff;border:none;border-radius:4px;padding:.5rem 1rem;cursor:pointer}
+    #controls button{background:var(--accent);color:#fff;border:none;border-radius:4px;padding:.5rem 1rem;cursor:pointer}
     #search{padding:.5rem;margin:.5rem 1rem;border:none;border-radius:4px;width:calc(100% - 2rem)}
     #favBtn{margin:.5rem 1rem;padding:.5rem 1rem;background:var(--accent);color:#fff;border:none;border-radius:4px;cursor:pointer}
     #list{max-height:40vh;overflow-y:auto;margin:0 1rem}
@@ -25,28 +25,29 @@
 
 <header>
   <img src="https://i.postimg.cc/V6KZQqhc/logo8-6-215044.png" alt="Logo"/>
-  <h1>Xuperlist IPT Player</h1>
+  <h1>XUPERLIST IPT PLAYER</h1>
 </header>
 
 <section id="controls">
-  <input id="urlInput" type="text" placeholder="📎URL .m3u/.m3u8/.mp4…"/>
-  <button onclick="loadUrl()">📎Reproducir URL</button>
-  <button onclick="loadRemote()">
-  
-  📁Cargar lista remota</button>
-  <label>
-   📁 Selecciona lista Local
-    <input id="fileInput" type="file" accept=".m3u,.m3u8,.w3u,.txt" style="display:none"/>
-  </label>
+  <!-- Reproducir URL directa -->
+  <input id="urlInput" type="text" placeholder="📎 URL .m3u/.m3u8/.mp4…"/>
+  <button onclick="loadUrl()">📎 Reproducir URL</button>
+
+  <!-- Cargar lista remota -->
+  <input id="remoteUrlInput" type="text" placeholder=",⬆️ URL de lista remota"/>
+  <button onclick="loadRemote()">⬆️ Cargar lista remota</button>
+
+  <!-- Botón para reiniciar la lista de inicio -->
+  <button onclick="reiniciarListaInicio()">🌀 Reiniciar lista de inicio</button>
 </section>
 
-<input id="search" placeholder="Buscar canal…" oninput="filterList(this.value)"/>
-<button id="favBtn">Mostrar sólo Favoritos</button>
+<input id="search" placeholder="🔍 Buscar canal…" oninput="filterList(this.value)"/>
+<button id="favBtn">⭐ Mostrar sólo Favoritos</button>
+
 <div id="list"></div>
 <video id="player" controls></video>
 
 <script>
-// === CONFIGURACIÓN OCULTA ===
 const AUTO_LIST_URL = 'https://raw.githubusercontent.com/iptv-org/iptv/master/streams/es.m3u';
 
 let channels = [];
@@ -95,20 +96,28 @@ function loadUrl() {
 }
 
 function loadRemote() {
-  const url = prompt('URL de la lista M3U:');
-  if (!url) return;
-  fetch(url)
+  const u = $('#remoteUrlInput').value.trim();
+  if (!u) return alert('Introduce la URL de la lista');
+  fetch(u)
     .then(r => r.text())
     .then(parseM3U)
     .catch(() => alert('Error al descargar la lista'));
 }
 
-$('#fileInput').addEventListener('change', e => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => parseM3U(reader.result);
-  reader.readAsText(file);
+function reiniciarListaInicio() {
+  fetch(AUTO_LIST_URL)
+    .then(r => r.text())
+    .then(text => {
+      parseM3U(text);
+    })
+    .catch(() => alert('No se pudo restaurar la lista de inicio'));
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  fetch(AUTO_LIST_URL)
+    .then(r => r.text())
+    .then(parseM3U)
+    .catch(() => alert('No se pudo cargar la lista automática'));
 });
 
 function parseM3U(text) {
@@ -132,16 +141,7 @@ function parseM3U(text) {
 
 function filterList(term) { showList(); }
 
-/* ---------- BOTÓN FAVORITOS ---------- */
 $('#favBtn').addEventListener('click', () => showList(true));
-
-/* ---------- AUTO-CARGA ---------- */
-window.addEventListener('DOMContentLoaded', () => {
-  fetch(AUTO_LIST_URL)
-    .then(r => r.text())
-    .then(parseM3U)
-    .catch(() => alert('No se pudo cargar la lista automática'));
-});
 </script>
 
 </body>
