@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Xuperlist IPT Player</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <style>
+    :root{--bg:#111;--accent:#ff3d00;--text:#eee;--panel:#222}
+    body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
+    header{display:flex;align-items:center;justify-content:space-between;padding:.5rem 1rem;background:var(--panel)}
+    header img{height:200px}
+    #controls{display:flex;gap:.5rem;flex-wrap:wrap;padding:.5rem 1rem}
+    #controls input[type="text"]{flex:1 1 200px;padding:.5rem;border:none;border-radius:4px}
+    #controls button,#controls label{background:var(--accent);color:#fff;border:none;border-radius:4px;padding:.5rem 1rem;cursor:pointer}
+    #search{padding:.5rem;margin:.5rem 1rem;border:none;border-radius:4px;width:calc(100% - 2rem)}
+    #favBtn{margin:.5rem 1rem;padding:.5rem 1rem;background:var(--accent);color:#fff;border:none;border-radius:4px;cursor:pointer}
+    #list{max-height:40vh;overflow-y:auto;margin:0 1rem}
+    #list div{display:flex;justify-content:space-between;align-items:center;padding:.4rem .8rem;border-bottom:1px solid #333;cursor:pointer}
+    #list div:hover{background:#333}
+    video{width:100%;max-width:800px;margin:1rem auto;display:block;border-radius:6px}
+    .fav{color:gold}
+  </style>
+</head>
+<body>
+
+<header>
+  <img src="https://i.postimg.cc/RV81y11K/IMG-20250805-220533-390.jpg" alt="Logo"/>
+  <h1>Xuperlist IPT Player</h1>
+</header>
+
+<section id="controls">
+  <input id="urlInput" type="text" placeholder="📎URL .m3u/.m3u8/.mp4…"/>
+  <button onclick="loadUrl()">📎Reproducir URL</button>
+  <button onclick="loadRemote()">
+  
+  📁Cargar lista remota</button>
+  <label>
+   📁 Selecciona lista Local
+    <input id="fileInput" type="file" accept=".m3u,.m3u8,.w3u,.txt" style="display:none"/>
+  </label>
+</section>
+
+<input id="search" placeholder="Buscar canal…" oninput="filterList(this.value)"/>
+<button id="favBtn">Mostrar sólo Favoritos</button>
+<div id="list"></div>
+<video id="player" controls></video>
+
+<script>
+// === CONFIGURACIÓN OCULTA ===
+const AUTO_LIST_URL = 'https://raw.githubusercontent.com/iptv-org/iptv/master/streams/es.m3u';
+
+let channels = [];
+let favorites = JSON.parse(localStorage.getItem('favs') || '[]');
+const $ = sel => document.querySelector(sel);
+const player = $('#player');
+
+function showList(filterFav = false) {
+  const list = $('#list');
+  list.innerHTML = '';
+  const term = $('#search').value.toLowerCase();
+  let filtered = filterFav ? channels.filter(ch => favorites.includes(ch.url)) : channels;
+  filtered
+    .filter(ch => ch.name.toLowerCase().includes(term))
+    .forEach(ch => {
+      const div = document.createElement('div');
+      div.innerHTML = `<span>${ch.name}</span>
+                       <span class="fav">${favorites.includes(ch.url)?'★':'☆'}</span>`;
+      div.onclick = () => play(ch.url);
+      div.querySelector('.fav').onclick = e => {
+        e.stopPropagation();
+        toggleFav(ch.url);
+        showList();
+      };
+      list.appendChild(div);
+    });
+}
+
+function toggleFav(url) {
+  favorites.includes(url)
+    ? favorites.splice(favorites.indexOf(url), 1)
+    : favorites.push(url);
+  localStorage.setItem('favs', JSON.stringify(favorites));
+}
+
+function play(url) {
+  player.src = url;
+  player.load();
+  player.play();
+}
+
+function loadUrl() {
+  const u = $('#urlInput').value.trim();
+  if (!u) return alert('Introduce una URL');
+  play(u);
+}
+
+function loadRemote() {
+  const url = prompt('URL de la lista M3U:');
+  if (!url) return;
+  fetch(url)
+    .then(r => r.text())
+    .then(parseM3U)
+    .catch(() => alert('Error al descargar la lista'));
+}
+
+$('#fileInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => parseM3U(reader.result);
+  reader.readAsText(file);
+});
+
+function parseM3U(text) {
+  channels = [];
+  const lines = text.split('\n');
+  let current = null;
+  lines.forEach(l => {
+    l = l.trim();
+    if (l.startsWith('#EXTINF')) {
+      const name = l.split(',')[1] || 'Sin nombre';
+      current = {name, url: ''};
+    } else if (l && !l.startsWith('#') && current) {
+      current.url = l;
+      channels.push(current);
+      current = null;
+    }
+  });
+  showList();
+  if (channels.length) play(channels[0].url);
+}
+
+function filterList(term) { showList(); }
+
+/* ---------- BOTÓN FAVORITOS ---------- */
+$('#favBtn').addEventListener('click', () => showList(true));
+
+/* ---------- AUTO-CARGA ---------- */
+window.addEventListener('DOMContentLoaded', () => {
+  fetch(AUTO_LIST_URL)
+    .then(r => r.text())
+    .then(parseM3U)
+    .catch(() => alert('No se pudo cargar la lista automática'));
+});
+</script>
+
+</body>
+</html>
